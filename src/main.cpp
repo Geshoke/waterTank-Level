@@ -99,7 +99,8 @@ void loop()
         readings[i] = distance_cm;
 
         
-        Serial.println("DISTANCE"+distance_cm);
+        Serial.print("DISTANCE:");
+        Serial.println(distance_cm);
     }
 
     // Sort the readings in ascending order to find the median
