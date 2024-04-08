@@ -6,16 +6,17 @@
 #include <ArduinoJson.h>
 #include <NewPing.h>
 #include <UniversalTelegramBot.h>
+#include "secrets.h"
 
-#define BOT_TOKEN "6502419880:AAGYi_OnbgKVb4KWiADUl-IVfHyOzSDZTJQ"
-#define CHAT_ID "6536644015"
+#define BOT_TOKEN botToken
+#define CHAT_ID chatID
 
 X509List cert(TELEGRAM_CERTIFICATE_ROOT);
 WiFiClientSecure secured_client;
 UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 
-const char *ssid = "CHEBIO";
-const char *password = "cheb2ann";
+const char *ssid = wifiSSID;
+const char *password = wifiPassword;
 // const char *ssid = "Chebio";
 // const char *password = "ruj12345kp";
 const char *serverUrl = "https://www.gibroenterprise.com/aggregateESP_Readings";
