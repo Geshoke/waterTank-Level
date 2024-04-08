@@ -5,6 +5,14 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <NewPing.h>
+#include <UniversalTelegramBot.h>
+
+#define BOT_TOKEN "6502419880:AAGYi_OnbgKVb4KWiADUl-IVfHyOzSDZTJQ"
+#define CHAT_ID "6536644015"
+
+X509List cert(TELEGRAM_CERTIFICATE_ROOT);
+WiFiClientSecure secured_client;
+UniversalTelegramBot bot(BOT_TOKEN, secured_client);
 
 const char *ssid = "ConcreteForest";
 const char *password = "gichuki1234";
@@ -32,6 +40,8 @@ void setup()
 
     // Connect to WiFi
     WiFi.begin(ssid, password);
+    secured_client.setTrustAnchors(&cert);
+    // secured_client.set (TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(1000);
@@ -89,7 +99,7 @@ void networkPost(unsigned int distance)
 
 void loop()
 {
-
+bot.sendMessage(CHAT_ID,"test","");
     // Take 20 readings
     for (int i = 0; i < NUM_READINGS; i++)
     {
@@ -99,7 +109,8 @@ void loop()
         readings[i] = distance_cm;
 
         
-        Serial.println("DISTANCE"+distance_cm);
+        Serial.print("DISTANCE:");
+        Serial.println(distance_cm);
     }
 
     // Sort the readings in ascending order to find the median
