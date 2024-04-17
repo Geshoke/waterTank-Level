@@ -5,9 +5,18 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <NewPing.h>
+#include <UniversalTelegramBot.h>
+#include "secrets.h"
 
-const char *ssid = "ConcreteForest";
-const char *password = "gichuki1234";
+#define BOT_TOKEN botToken
+#define CHAT_ID chatID
+
+X509List cert(TELEGRAM_CERTIFICATE_ROOT);
+WiFiClientSecure secured_client;
+UniversalTelegramBot bot(BOT_TOKEN, secured_client);
+
+const char *ssid = wifiSSID;
+const char *password = wifiPassword;
 // const char *ssid = "Chebio";
 // const char *password = "ruj12345kp";
 const char *serverUrl = "https://www.gibroenterprise.com/aggregateESP_Readings";
@@ -32,6 +41,8 @@ void setup()
 
     // Connect to WiFi
     WiFi.begin(ssid, password);
+    secured_client.setTrustAnchors(&cert);
+    // secured_client.set (TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(1000);
@@ -39,14 +50,25 @@ void setup()
     }
     Serial.println("Connected to WiFi");
 
-    // Initialize NTP client
-    timeClient.begin();
-
-    // Wait for NTP synchronization
-    while (!timeClient.update())
+    configTime(0, 0, "pool.ntp.org"); // get UTC time via NTP
+    time_t now = time(nullptr);
+    while (now < 24 * 3600)
     {
-        timeClient.forceUpdate();
+        Serial.print(".");
+        delay(100);
+        now = time(nullptr);
     }
+
+    // // Initialize NTP client
+    // timeClient.begin();
+
+    // // Wait for NTP synchronization
+    // while (!timeClient.update())
+    // {
+    //     timeClient.forceUpdate();
+    // }
+
+    bot.sendMessage(CHAT_ID, "Tank started", "");
 }
 
 void networkPost(unsigned int distance)
@@ -89,7 +111,7 @@ void networkPost(unsigned int distance)
 
 void loop()
 {
-
+    // bot.sendMessage(CHAT_ID,"test","");
     // Take 20 readings
     for (int i = 0; i < NUM_READINGS; i++)
     {
@@ -98,7 +120,6 @@ void loop()
         unsigned int distance_cm = sonar.ping_cm();
         readings[i] = distance_cm;
 
-        
         Serial.print("DISTANCE:");
         Serial.println(distance_cm);
     }
@@ -121,6 +142,18 @@ void loop()
     // Calculate the median
     unsigned int median_distance = readings[NUM_READINGS / 2];
     networkPost(median_distance);
+
+    if (median_distance > 124)
+    {
+        // Serial.println("less");
+        bot.sendMessage(CHAT_ID, "Tank is almost empty", "");
+    }
+    else if (median_distance < 43)
+    {
+        // Serial.println("full");
+
+        bot.sendMessage(CHAT_ID, "Tank is almost full", "");
+    }
 
     // Print the median distance in centimeters
     Serial.print("Median Distance: ");
