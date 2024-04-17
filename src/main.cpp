@@ -7,9 +7,13 @@
 #include <NewPing.h>
 #include <UniversalTelegramBot.h>
 #include "secrets.h"
+#include <string>
+#include <vector>
 
 #define BOT_TOKEN botToken
 #define CHAT_ID chatID
+
+std::vector<unsigned int> storeReadings;
 
 X509List cert(TELEGRAM_CERTIFICATE_ROOT);
 WiFiClientSecure secured_client;
@@ -28,6 +32,9 @@ const int NUM_READINGS = 20;
 const int pingDelay = 500;
 const int scriptDelay = 1200000;
 
+unsigned long wifiConnectTimeout = 30000;
+unsigned long wifiConnectStart = 0;
+
 NewPing sonar(TRIG_PIN, ECHO_PIN);
 int readings[NUM_READINGS]; // Array to store the readings
 
@@ -40,24 +47,24 @@ void setup()
     delay(1000);
 
     // Connect to WiFi
-    WiFi.begin(ssid, password);
+    // WiFi.begin(ssid, password);
     secured_client.setTrustAnchors(&cert);
     // secured_client.set (TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(1000);
-        Serial.println("Connecting to WiFi...");
-    }
-    Serial.println("Connected to WiFi");
+    // while (WiFi.status() != WL_CONNECTED)
+    // {
+    //     delay(1000);
+    //     Serial.println("Connecting to WiFi...");
+    // }
+    // Serial.println("Connected to WiFi");
 
-    configTime(0, 0, "pool.ntp.org"); // get UTC time via NTP
-    time_t now = time(nullptr);
-    while (now < 24 * 3600)
-    {
-        Serial.print(".");
-        delay(100);
-        now = time(nullptr);
-    }
+    // configTime(0, 0, "pool.ntp.org"); // get UTC time via NTP
+    // time_t now = time(nullptr);
+    // while (now < 24 * 3600)
+    // {
+    //     Serial.print(".");
+    //     delay(100);
+    //     now = time(nullptr);
+    // }
 
     // // Initialize NTP client
     // timeClient.begin();
@@ -68,8 +75,46 @@ void setup()
     //     timeClient.forceUpdate();
     // }
 
-    bot.sendMessage(CHAT_ID, "Tank started", "");
-}
+    // bot.sendMessage(CHAT_ID, "Tank started", "");
+};
+
+void connectToWIFI()
+{
+    WiFi.begin(ssid, password);
+    Serial.println("Connecting to WiFi...");
+
+    wifiConnectStart = millis(); // Record the start time of WiFi connection attempt
+
+    while (WiFi.status() != WL_CONNECTED && millis() - wifiConnectStart < wifiConnectTimeout)
+    {
+        delay(500);
+        Serial.print(".");
+    }
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        Serial.println("");
+        Serial.println("Connected to WiFi");
+
+        configTime(0, 0, "pool.ntp.org"); // get UTC time via NTP
+        time_t now = time(nullptr);
+        while (now < 24 * 3600)
+        {
+            Serial.print(".");
+            delay(100);
+            now = time(nullptr);
+        }
+
+        bot.sendMessage(CHAT_ID, "WIFI connected successfully", "");
+
+        // do somthing like light etc
+    }
+    else
+    {
+        Serial.println("");
+        Serial.println("WiFi connection failed. Continuing without WiFi.");
+    }
+};
 
 void networkPost(unsigned int distance)
 {
@@ -111,7 +156,62 @@ void networkPost(unsigned int distance)
 
 void loop()
 {
-    // bot.sendMessage(CHAT_ID,"test","");
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        connectToWIFI();
+
+        //////////////////////store readings///////////////////////
+
+        // Take 20 readings
+        for (int i = 0; i < NUM_READINGS; i++)
+        {
+            delay(pingDelay); // 500ms delay between each reading
+
+            unsigned int distance_cm = sonar.ping_cm();
+            readings[i] = distance_cm;
+
+            Serial.print("DISTANCE:");
+            Serial.println(distance_cm);
+        }
+
+        // Sort the readings in ascending order to find the median
+        for (int i = 0; i < NUM_READINGS - 1; i++)
+        {
+            for (int j = i + 1; j < NUM_READINGS; j++)
+            {
+                if (readings[j] < readings[i])
+                {
+                    // Swap values
+                    int temp = readings[i];
+                    readings[i] = readings[j];
+                    readings[j] = temp;
+                }
+            }
+        }
+
+        // Calculate the median
+        unsigned int median_distance = readings[NUM_READINGS / 2];
+
+        //////////////////////store readings///////////////////////
+        storeReadings.push_back(median_distance);
+        delay(scriptDelay);
+    }
+
+    if (!storeReadings.empty())
+    {
+        Serial.println("WiFi connected. Uploading stored readings...");
+
+        for (unsigned int distance : storeReadings)
+        {
+            networkPost(distance);
+        }
+
+        storeReadings.clear();
+        bot.sendMessage(CHAT_ID, "Stored Readings Uploaded", "");
+
+        Serial.println("Stored Readings Uploaded");
+    }
+
     // Take 20 readings
     for (int i = 0; i < NUM_READINGS; i++)
     {
