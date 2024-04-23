@@ -45,7 +45,7 @@ void setup()
 {
     Serial.begin(115200);
     delay(1000);
-
+    Serial.println("SettingUp");
     // Connect to WiFi
     // WiFi.begin(ssid, password);
     secured_client.setTrustAnchors(&cert);
@@ -55,7 +55,6 @@ void setup()
     //     delay(1000);
     //     Serial.println("Connecting to WiFi...");
     // }
-    // Serial.println("Connected to WiFi");
 
     // configTime(0, 0, "pool.ntp.org"); // get UTC time via NTP
     // time_t now = time(nullptr);
@@ -156,9 +155,11 @@ void networkPost(unsigned int distance)
 
 void loop()
 {
+        
+    if (WiFi.status() != WL_CONNECTED){connectToWIFI();}
+
     if (WiFi.status() != WL_CONNECTED)
     {
-        connectToWIFI();
 
         //////////////////////store readings///////////////////////
 
@@ -194,10 +195,11 @@ void loop()
 
         //////////////////////store readings///////////////////////
         storeReadings.push_back(median_distance);
-        delay(scriptDelay);
+        Serial.println("reading stored");
+        // delay(scriptDelay);
     }
 
-    if (!storeReadings.empty())
+    if (!storeReadings.empty() && WiFi.status() == WL_CONNECTED )
     {
         Serial.println("WiFi connected. Uploading stored readings...");
 
@@ -212,7 +214,8 @@ void loop()
         Serial.println("Stored Readings Uploaded");
     }
 
-    // Take 20 readings
+if (WiFi.status() == WL_CONNECTED){
+// Take 20 readings
     for (int i = 0; i < NUM_READINGS; i++)
     {
         delay(pingDelay); // 500ms delay between each reading
@@ -246,19 +249,22 @@ void loop()
     if (median_distance > 124)
     {
         // Serial.println("less");
-        bot.sendMessage(CHAT_ID, "Tank is almost empty", "");
+std::string message = "Tank is almost empty. Tank level is: " + std::to_string(median_distance);
+        bot.sendMessage(CHAT_ID,message.c_str(), "");
     }
     else if (median_distance < 43)
     {
         // Serial.println("full");
-
-        bot.sendMessage(CHAT_ID, "Tank is almost full", "");
+std::string message = "Tank is almost full. Tank level is: " + std::to_string(median_distance);
+        bot.sendMessage(CHAT_ID, message.c_str(), "");
     }
 
     // Print the median distance in centimeters
     Serial.print("Median Distance: ");
     Serial.print(median_distance);
     Serial.println(" cm");
-
+}
+    
+    Serial.println("scriptSleep");
     delay(scriptDelay);
 }
