@@ -46,6 +46,8 @@ void setup()
     Serial.begin(115200);
     delay(1000);
     Serial.println("SettingUp");
+    Serial.println(WiFi.macAddress());
+
     // Connect to WiFi
     // WiFi.begin(ssid, password);
     secured_client.setTrustAnchors(&cert);
